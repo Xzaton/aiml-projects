@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dark Pattern Detector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 24px 40px; border-bottom: 2px solid #e74c3c;
+    display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 26px; color: #fff; font-weight: 700; }
+  header span { background: #e74c3c; color: white; font-size: 11px;
+    padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+  .container { max-width: 1100px; margin: 40px auto; padding: 0 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 24px; }
+  .card h2 { font-size: 15px; color: #8888aa; margin-bottom: 14px;
+    text-transform: uppercase; letter-spacing: 1px; }
+  textarea { width: 100%; height: 220px; background: #0f0f1a; border: 1px solid #2a2a4a;
+    border-radius: 8px; color: #e0e0e0; font-size: 14px; padding: 14px;
+    resize: vertical; font-family: inherit; line-height: 1.6; }
+  textarea:focus { outline: none; border-color: #e74c3c; }
+  button#analyzeBtn { width: 100%; margin-top: 14px; padding: 14px;
+    background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;
+    border: none; border-radius: 8px; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: opacity .2s; }
+  button#analyzeBtn:hover { opacity: .88; }
+  .score-box { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .score-circle { width: 72px; height: 72px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 22px; font-weight: 800;
+    border: 3px solid; flex-shrink: 0; }
+  .score-low  { border-color: #27ae60; color: #27ae60; }
+  .score-med  { border-color: #f39c12; color: #f39c12; }
+  .score-high { border-color: #e74c3c; color: #e74c3c; }
+  .risk-label { font-size: 13px; color: #8888aa; }
+  .risk-value { font-size: 18px; font-weight: 700; }
+  .finding-card { background: #0f0f1a; border-left: 4px solid; border-radius: 6px;
+    padding: 12px 16px; margin-bottom: 10px; }
+  .finding-title { font-weight: 700; font-size: 14px; }
+  .finding-desc  { font-size: 12px; color: #8888aa; margin: 4px 0 8px; }
+  .finding-kws   { display: flex; flex-wrap: wrap; gap: 6px; }
+  .kw-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(255,255,255,.08); }
+  .severity-high { font-size: 11px; background: #e74c3c; color: white;
+    padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
+  .severity-med  { font-size: 11px; background: #f39c12; color: white;
+    padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
+  #highlightBox { background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 16px; font-size: 14px; line-height: 1.8; min-height: 100px;
+    white-space: pre-wrap; word-break: break-word; }
+  .empty-state { color: #555; font-size: 14px; text-align: center; padding: 40px 0; }
+  .samples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .sample-btn { font-size: 11px; padding: 5px 10px; border-radius: 6px;
+    border: 1px solid #2a2a4a; background: #1a1a2e; color: #8888aa; cursor: pointer; }
+  .sample-btn:hover { border-color: #e74c3c; color: #e74c3c; }
+  .stat-row { display: flex; gap: 12px; margin-bottom: 18px; }
+  .stat { flex: 1; background: #0f0f1a; border-radius: 8px; padding: 12px;
+    text-align: center; }
+  .stat-num { font-size: 24px; font-weight: 800; color: #e74c3c; }
+  .stat-lbl { font-size: 11px; color: #8888aa; margin-top: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🕵️ Dark Pattern Detector</h1>
+  <span>AI-Powered</span>
+  <span style="background:#2980b9;">v1.0</span>
+</header>
+<div class="container">
+  <div class="grid">
+    <!-- LEFT: Input -->
+    <div>
+      <div class="card">
+        <h2>📋 Paste Interface Text</h2>
+        <textarea id="inputText" placeholder="Paste any website text, button labels, popup messages, subscription terms, checkout copy...
+
+Example:
+'Only 2 rooms left! Offer expires in 10 minutes. Free trial — auto renews at ₹999/month. Cancel anytime by calling support.'"></textarea>
+        <div class="samples">
+          <span style="font-size:11px;color:#555;align-self:center;">Try:</span>
+          <button class="sample-btn" onclick="loadSample(1)">E-Commerce</button>
+          <button class="sample-btn" onclick="loadSample(2)">Subscription</button>
+          <button class="sample-btn" onclick="loadSample(3)">Travel Booking</button>
+        </div>
+        <button id="analyzeBtn" onclick="analyze()">🔍 Analyze for Dark Patterns</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Results -->
+    <div>
+      <div class="card" id="resultsCard">
+        <h2>📊 Analysis Results</h2>
+        <div id="results"><div class="empty-state">Results will appear here after analysis.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Highlighted text -->
+  <div class="card" style="margin-top:24px;">
+    <h2>🎯 Highlighted Text</h2>
+    <div id="highlightBox"><span style="color:#555;">Highlighted patterns will appear here...</span></div>
+  </div>
+</div>
+
+<script>
+const samples = {
+  1: `Only 3 items left in stock! 1,247 people are viewing this right now. Add to cart before it sells out. Free shipping on orders above ₹499 (service fee ₹49 applies at checkout). Recommended by our experts. Pre-selected: Premium protection plan (+₹299).`,
+  2: `Start your free trial today! After 7 days, you will be automatically charged ₹999/month. Cancel anytime — to cancel, please call our support line between 9AM-5PM Monday to Friday or visit our store. No thanks, I don't want to save money.`,
+  3: `Hurry! Only 1 seat left at this price. Offer expires in 00:08:43. 842 people booked this flight today. Booking fee ₹249 + convenience fee ₹99 applied at final step. Travel insurance pre-selected (₹399). Taxes not included.`
+};
+
+function loadSample(n) {
+  document.getElementById('inputText').value = samples[n];
+}
+
+async function analyze() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { alert('Please paste some text first.'); return; }
+  const btn = document.getElementById('analyzeBtn');
+  btn.textContent = '⏳ Analyzing...'; btn.disabled = true;
+
+  const res = await fetch('/analyze', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({text})
+  });
+  const data = await res.json();
+  btn.textContent = '🔍 Analyze for Dark Patterns'; btn.disabled = false;
+
+  // Score color
+  const scoreClass = data.score < 20 ? 'score-low' : data.score < 60 ? 'score-med' : 'score-high';
+  const riskColor  = data.risk === 'Low' ? '#27ae60' : data.risk === 'Medium' ? '#f39c12' : '#e74c3c';
+
+  let html = `
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num">${data.count}</div><div class="stat-lbl">Patterns Found</div></div>
+      <div class="stat"><div class="stat-num" style="color:${riskColor}">${data.risk}</div><div class="stat-lbl">Risk Level</div></div>
+      <div class="stat"><div class="stat-num">${data.score}</div><div class="stat-lbl">Manipulation Score</div></div>
+    </div>`;
+
+  if (data.findings.length === 0) {
+    html += `<div class="empty-state" style="color:#27ae60;">✅ No dark patterns detected in this text.</div>`;
+  } else {
+    data.findings.forEach(f => {
+      const sevClass = f.severity === 'High' ? 'severity-high' : 'severity-med';
+      html += `<div class="finding-card" style="border-color:${f.color}">
+        <div class="finding-title" style="color:${f.color}">
+          ${f.pattern} <span class="${sevClass}">${f.severity}</span>
+        </div>
+        <div class="finding-desc">${f.description}</div>
+        <div class="finding-kws">${f.matched.map(k=>`<span class="kw-tag">"${k}"</span>`).join('')}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('results').innerHTML = html;
+  document.getElementById('highlightBox').innerHTML = data.highlighted || text;
+}
+</script>
+</body>
+</html>

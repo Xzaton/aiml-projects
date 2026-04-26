@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Fake News Detector</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh}
+  header{background:linear-gradient(135deg,#1a0a0a,#2d1515);padding:22px 40px;
+    border-bottom:2px solid #c0392b;display:flex;align-items:center;gap:14px}
+  header h1{font-size:24px;font-weight:800;color:#fff}
+  .badge{font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600}
+  .container{max-width:960px;margin:36px auto;padding:0 20px}
+  .card{background:#111;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:20px}
+  h2{font-size:13px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+  textarea{width:100%;height:140px;background:#0a0a0a;border:1px solid #333;border-radius:8px;
+    color:#e0e0e0;font-size:14px;padding:14px;resize:vertical;font-family:inherit;line-height:1.6}
+  textarea:focus{outline:none;border-color:#c0392b}
+  .analyze-btn{width:100%;margin-top:12px;padding:14px;background:linear-gradient(135deg,#c0392b,#922b21);
+    color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer}
+  .analyze-btn:hover{opacity:.88}
+  .result-main{display:flex;align-items:center;gap:24px;margin-bottom:20px}
+  .verdict{font-size:36px;font-weight:900;letter-spacing:2px}
+  .verdict-fake{color:#e74c3c}.verdict-real{color:#27ae60}
+  .conf{font-size:14px;color:#888;margin-top:4px}
+  .meter-wrap{margin:12px 0}
+  .meter-label{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:5px}
+  .meter-bg{background:#222;border-radius:6px;height:16px;overflow:hidden}
+  .meter-fill{height:100%;border-radius:6px;transition:width .8s ease}
+  .signal-section{margin-top:16px}
+  .signal-title{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+  .signal-item{background:#0a0a0a;border-radius:6px;padding:8px 12px;margin-bottom:6px;
+    display:flex;justify-content:space-between;align-items:flex-start;font-size:12px}
+  .signal-name{color:#bbb;font-weight:600}
+  .signal-vals{color:#e74c3c;font-size:11px;margin-top:2px}
+  .signal-vals-real{color:#27ae60}
+  .samples{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .sbtn{font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid #333;
+    background:#0a0a0a;color:#888;cursor:pointer}
+  .sbtn:hover{border-color:#c0392b;color:#e74c3c}
+  .risk-chip{padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700}
+  .risk-high{background:#3d1111;color:#e74c3c}
+  .risk-med{background:#3d2c11;color:#f39c12}
+  .risk-low{background:#11311a;color:#27ae60}
+  #results{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>📰 Fake News Detector</h1>
+  <span class="badge" style="background:#c0392b">ML Powered</span>
+  <span class="badge" style="background:#2980b9">TF-IDF + LR</span>
+</header>
+<div class="container">
+  <div class="card">
+    <h2>🔍 Enter News Headline or Text</h2>
+    <textarea id="inputText" placeholder="Paste a news headline or article excerpt to analyze...
+
+Example: SHOCKING: Government secretly putting mind control chemicals in water supply"></textarea>
+    <div class="samples">
+      <span style="font-size:11px;color:#444;align-self:center">Try:</span>
+      <button class="sbtn" onclick="load(1)">Fake example</button>
+      <button class="sbtn" onclick="load(2)">Real example</button>
+      <button class="sbtn" onclick="load(3)">Clickbait</button>
+    </div>
+    <button class="analyze-btn" onclick="analyze()">🤖 Detect — Real or Fake?</button>
+  </div>
+
+  <div class="card" id="results">
+    <h2>📊 Detection Result</h2>
+    <div id="resultsContent"></div>
+  </div>
+</div>
+
+<script>
+const examples = {
+  1:"BOMBSHELL LEAKED: Secret society controls entire government, documents PROVE shadow organization runs elections. SHARE before they DELETE this!",
+  2:"Central bank raises interest rates by 0.25 percent following review of economic growth data. Officials cite inflation concerns.",
+  3:"Doctors don't want you to know this ONE miracle cure! Big pharma furious. You won't BELIEVE what they've been hiding for decades!!"
+};
+function load(n){document.getElementById('inputText').value=examples[n];}
+
+async function analyze(){
+  const text=document.getElementById('inputText').value.trim();
+  if(!text){alert('Please enter a headline or text.');return;}
+  const btn=document.querySelector('.analyze-btn');
+  btn.textContent='⏳ Analyzing...';btn.disabled=true;
+  const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  const d=await res.json();
+  btn.textContent='🤖 Detect — Real or Fake?';btn.disabled=false;
+
+  const isFake=d.label==='FAKE';
+  const riskClass=d.risk==='High'?'risk-high':d.risk==='Medium'?'risk-med':'risk-low';
+
+  let fakeSignalsHtml='<div class="signal-title">⚠️ Fake Indicators Found</div>';
+  if(Object.keys(d.fake_signals).length===0){
+    fakeSignalsHtml+='<div style="font-size:12px;color:#444;padding:8px">None detected</div>';
+  } else {
+    Object.entries(d.fake_signals).forEach(([k,v])=>{
+      fakeSignalsHtml+=`<div class="signal-item"><span class="signal-name">${k}</span><span class="signal-vals">${v.join(', ')}</span></div>`;
+    });
+  }
+
+  let realSignalsHtml='<div class="signal-title" style="margin-top:14px">✅ Credibility Indicators Found</div>';
+  if(Object.keys(d.real_signals).length===0){
+    realSignalsHtml+='<div style="font-size:12px;color:#444;padding:8px">None detected</div>';
+  } else {
+    Object.entries(d.real_signals).forEach(([k,v])=>{
+      realSignalsHtml+=`<div class="signal-item"><span class="signal-name">${k}</span><span class="signal-vals signal-vals-real">${v.join(', ')}</span></div>`;
+    });
+  }
+
+  document.getElementById('resultsContent').innerHTML=`
+    <div class="result-main">
+      <div>
+        <div class="verdict ${isFake?'verdict-fake':'verdict-real'}">${d.label}</div>
+        <div class="conf">Confidence: ${d.confidence}% &nbsp;|&nbsp; <span class="risk-chip ${riskClass}">${d.risk} Risk</span></div>
+      </div>
+    </div>
+    <div class="meter-wrap">
+      <div class="meter-label"><span>😊 Real</span><span>${d.real_prob}%</span></div>
+      <div class="meter-bg"><div class="meter-fill" style="width:${d.real_prob}%;background:#27ae60"></div></div>
+    </div>
+    <div class="meter-wrap">
+      <div class="meter-label"><span>🚨 Fake</span><span>${d.fake_prob}%</span></div>
+      <div class="meter-bg"><div class="meter-fill" style="width:${d.fake_prob}%;background:#e74c3c"></div></div>
+    </div>
+    <div class="signal-section">${fakeSignalsHtml}${realSignalsHtml}</div>`;
+  document.getElementById('results').style.display='block';
+}
+</script>
+</body>
+</html>

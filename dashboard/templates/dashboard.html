@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Dark Pattern Detector — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;
+        --red:#e74c3c;--orange:#e67e22;--green:#2ea043;--blue:#388bfd}
+  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  /* ── Sidebar ── */
+  .layout{display:flex;min-height:100vh}
+  .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);
+    padding:0;flex-shrink:0;display:flex;flex-direction:column}
+  .sidebar-logo{padding:20px 18px;border-bottom:1px solid var(--border);
+    font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;font-size:13px;
+    color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+  .nav-item.active,.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04);border-left-color:var(--red)}
+  .nav-item span{font-size:16px}
+  .sidebar-bottom{margin-top:auto;padding:16px 18px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--muted)}
+  /* ── Main ── */
+  .main{flex:1;overflow-y:auto;padding:24px}
+  .page-title{font-size:22px;font-weight:800;margin-bottom:4px}
+  .page-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+  /* ── Stat cards ── */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .stat-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .stat-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .stat-icon{font-size:20px}
+  .stat-value{font-size:28px;font-weight:800}
+  .stat-change{font-size:11px;color:var(--muted);margin-top:3px}
+  /* ── Grid ── */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .grid3{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .panel-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+  /* ── Analyzer ── */
+  textarea{width:100%;height:120px;background:var(--bg);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:13px;padding:12px;resize:none;font-family:inherit}
+  textarea:focus{outline:none;border-color:var(--red)}
+  .analyze-btn{width:100%;margin-top:10px;padding:11px;background:linear-gradient(135deg,var(--red),#c0392b);
+    color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+  .analyze-btn:hover{opacity:.88}
+  /* ── Finding pills ── */
+  .finding-pill{display:flex;align-items:center;gap:8px;padding:8px 12px;
+    border-radius:8px;margin-bottom:6px;border-left:3px solid;background:rgba(255,255,255,.02)}
+  .pill-icon{font-size:16px}
+  .pill-name{font-size:12px;font-weight:700;flex:1}
+  .pill-sev{font-size:10px;padding:2px 7px;border-radius:8px}
+  .sev-high{background:#3d1111;color:var(--red)}
+  .sev-med{background:#3d2c11;color:var(--orange)}
+  /* ── Risk donut labels ── */
+  .risk-legend{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .rl{display:flex;align-items:center;gap:8px;font-size:12px}
+  .rl-dot{width:10px;height:10px;border-radius:50%}
+  .rl-val{margin-left:auto;font-weight:700}
+  /* ── Recent table ── */
+  .rtable{width:100%;border-collapse:collapse;font-size:12px}
+  .rtable th{color:var(--muted);font-weight:600;text-align:left;padding:6px 10px;
+    border-bottom:1px solid var(--border);text-transform:uppercase;font-size:10px}
+  .rtable td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+  .risk-badge{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700}
+  .rb-high{background:#3d1111;color:var(--red)}
+  .rb-med{background:#3d2c11;color:var(--orange)}
+  .rb-low{background:#11311a;color:var(--green)}
+  /* ── Highlight box ── */
+  .highlight-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:14px;font-size:13px;line-height:1.8;min-height:60px;white-space:pre-wrap;word-break:break-word}
+  /* ── Top patterns bar ── */
+  .pattern-bar-row{margin-bottom:10px}
+  .pb-header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+  .pb-name{color:var(--text)}
+  .pb-count{color:var(--muted)}
+  .pb-bg{background:rgba(255,255,255,.06);border-radius:4px;height:8px;overflow:hidden}
+  .pb-fill{height:100%;border-radius:4px;transition:width .6s ease}
+  /* ── Score trend ── */
+  canvas{max-height:180px}
+  .empty{color:var(--muted);font-size:12px;padding:20px 0;text-align:center}
+  /* ── Samples ── */
+  .srow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .sbtn{font-size:11px;padding:4px 9px;border-radius:6px;border:1px solid var(--border);
+    background:var(--bg);color:var(--muted);cursor:pointer}
+  .sbtn:hover{border-color:var(--red);color:var(--red)}
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">🕵️ DarkPatterns<span style="color:var(--red)">AI</span></div>
+    <div class="nav-item active"><span>📊</span> Dashboard</div>
+    <div class="nav-item"><span>🔍</span> Analyzer</div>
+    <div class="nav-item"><span>📈</span> Analytics</div>
+    <div class="nav-item"><span>📋</span> History</div>
+    <div class="sidebar-bottom">
+      Piyush Mishra<br>SAP: 590024892<br>
+      <span style="color:var(--red)">●</span> Live
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+    <div class="page-title">Dark Pattern Detection Dashboard</div>
+    <div class="page-sub">Real-time analysis · Pattern tracking · Risk assessment</div>
+
+    <!-- Stat cards -->
+    <div class="stats-row" id="statCards">
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-label">Total Analyses</div><div class="stat-icon">🔍</div></div>
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-change">Cumulative session count</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-label">Avg Risk Score</div><div class="stat-icon">📊</div></div>
+        <div class="stat-value" id="statAvg" style="color:var(--orange)">—</div>
+        <div class="stat-change">Out of 100</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-label">High Risk</div><div class="stat-icon">🚨</div></div>
+        <div class="stat-value" id="statHigh" style="color:var(--red)">0</div>
+        <div class="stat-change">Analyses flagged High</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><div class="stat-label">Patterns Found</div><div class="stat-icon">⚠️</div></div>
+        <div class="stat-value" id="statPatterns" style="color:#f39c12">0</div>
+        <div class="stat-change">Across all analyses</div>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <!-- Analyzer -->
+      <div class="panel">
+        <div class="panel-title">🔍 Analyze Text</div>
+        <textarea id="inputText" placeholder="Paste any UI/website text here to detect dark patterns..."></textarea>
+        <div class="srow">
+          <button class="sbtn" onclick="loadSample(1)">E-Commerce</button>
+          <button class="sbtn" onclick="loadSample(2)">Subscription</button>
+          <button class="sbtn" onclick="loadSample(3)">Travel</button>
+        </div>
+        <button class="analyze-btn" onclick="analyze()">🔍 Detect Dark Patterns</button>
+        <!-- Results -->
+        <div id="scoreDisplay" style="display:none;margin-top:14px">
+          <div style="display:flex;gap:12px;margin-bottom:10px">
+            <div style="flex:1;background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+              <div id="scoreNum" style="font-size:26px;font-weight:800"></div>
+              <div style="font-size:10px;color:var(--muted)">SCORE</div>
+            </div>
+            <div style="flex:1;background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+              <div id="riskLabel" style="font-size:18px;font-weight:800"></div>
+              <div style="font-size:10px;color:var(--muted)">RISK</div>
+            </div>
+            <div style="flex:1;background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+              <div id="countNum" style="font-size:26px;font-weight:800;color:#f39c12"></div>
+              <div style="font-size:10px;color:var(--muted)">PATTERNS</div>
+            </div>
+          </div>
+          <div id="findingsList"></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="panel-title" style="margin-bottom:8px">🎯 Highlighted</div>
+          <div class="highlight-box" id="highlightBox" style="color:var(--muted);font-size:12px">Results appear here...</div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div>
+        <!-- Risk donut -->
+        <div class="panel" style="margin-bottom:14px">
+          <div class="panel-title">🥧 Risk Distribution</div>
+          <canvas id="riskChart"></canvas>
+          <div class="risk-legend">
+            <div class="rl"><div class="rl-dot" style="background:#e74c3c"></div>High Risk<div class="rl-val" id="rlHigh">0</div></div>
+            <div class="rl"><div class="rl-dot" style="background:#f39c12"></div>Medium Risk<div class="rl-val" id="rlMed">0</div></div>
+            <div class="rl"><div class="rl-dot" style="background:#2ea043"></div>Low Risk<div class="rl-val" id="rlLow">0</div></div>
+          </div>
+        </div>
+        <!-- Top patterns -->
+        <div class="panel">
+          <div class="panel-title">🏆 Top Patterns</div>
+          <div id="topPatterns"><div class="empty">Analyze text to see data</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Score trend + Recent -->
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-title">📈 Score Trend</div>
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">🕐 Recent Analyses</div>
+        <div id="recentTable"><div class="empty">No analyses yet</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Charts setup
+const riskCtx = document.getElementById('riskChart').getContext('2d');
+const riskChart = new Chart(riskCtx, {
+  type:'doughnut',
+  data:{labels:['High','Medium','Low'],datasets:[{data:[0,0,0],
+    backgroundColor:['#e74c3c','#f39c12','#2ea043'],borderWidth:0,hoverOffset:4}]},
+  options:{plugins:{legend:{display:false}},cutout:'70%',responsive:true}
+});
+
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+const trendChart = new Chart(trendCtx, {
+  type:'line',
+  data:{labels:[],datasets:[{label:'Risk Score',data:[],borderColor:'#e74c3c',
+    backgroundColor:'rgba(231,76,60,.1)',borderWidth:2,pointRadius:4,
+    pointBackgroundColor:'#e74c3c',fill:true,tension:.4}]},
+  options:{plugins:{legend:{display:false}},scales:{
+    x:{ticks:{color:'#8b949e',font:{size:10}},grid:{color:'#21262d'}},
+    y:{ticks:{color:'#8b949e',font:{size:10}},grid:{color:'#21262d'},min:0,max:100}},
+  responsive:true}
+});
+
+const samples = {
+  1:"Only 3 items left! 1,200 people viewing now. Service fee ₹49 at checkout. Pre-selected: Premium plan. Offer expires in 00:09:23.",
+  2:"Start free trial. Automatically charged ₹999/month after 7 days. Cancel anytime — to cancel call support 9AM-5PM Mon-Fri. No thanks I don't want to save money.",
+  3:"Hurry! Only 1 seat left at this price. Booking fee ₹249 + convenience fee ₹99. Travel insurance pre-selected. Taxes not included. Deal ends in 5 minutes."
+};
+function loadSample(n){document.getElementById('inputText').value=samples[n];}
+
+async function analyze(){
+  const text = document.getElementById('inputText').value.trim();
+  if(!text){alert('Please enter some text.');return;}
+  const btn=document.querySelector('.analyze-btn');
+  btn.textContent='⏳ Analyzing...';btn.disabled=true;
+  const res=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  const d=await res.json();
+  btn.textContent='🔍 Detect Dark Patterns';btn.disabled=false;
+
+  // Show score
+  const rc=d.risk==='High'?'#e74c3c':d.risk==='Medium'?'#f39c12':'#2ea043';
+  document.getElementById('scoreDisplay').style.display='block';
+  document.getElementById('scoreNum').textContent=d.score;
+  document.getElementById('scoreNum').style.color=rc;
+  document.getElementById('riskLabel').textContent=d.risk;
+  document.getElementById('riskLabel').style.color=rc;
+  document.getElementById('countNum').textContent=d.count;
+
+  // Findings
+  let fl='';
+  if(d.findings.length===0){fl='<div class="empty" style="color:#2ea043">✅ No patterns found</div>';}
+  else d.findings.forEach(f=>{
+    fl+=`<div class="finding-pill" style="border-color:${f.color}">
+      <span class="pill-icon">${f.icon}</span>
+      <span class="pill-name" style="color:${f.color}">${f.pattern}</span>
+      <span class="pill-sev ${f.severity==='High'?'sev-high':'sev-med'}">${f.severity}</span>
+    </div>`;
+  });
+  document.getElementById('findingsList').innerHTML=fl;
+  document.getElementById('highlightBox').innerHTML=d.highlighted||text;
+
+  // Refresh analytics
+  refreshAnalytics();
+}
+
+async function refreshAnalytics(){
+  const r=await fetch('/analytics');
+  const d=await r.json();
+
+  // Stats
+  document.getElementById('statTotal').textContent=d.total;
+  document.getElementById('statAvg').textContent=d.avg_score||'—';
+  document.getElementById('statHigh').textContent=d.risk_counts.High||0;
+  const totalPat=d.top_patterns.reduce((s,p)=>s+p.count,0);
+  document.getElementById('statPatterns').textContent=totalPat;
+
+  // Donut
+  riskChart.data.datasets[0].data=[d.risk_counts.High||0,d.risk_counts.Medium||0,d.risk_counts.Low||0];
+  riskChart.update();
+  document.getElementById('rlHigh').textContent=d.risk_counts.High||0;
+  document.getElementById('rlMed').textContent=d.risk_counts.Medium||0;
+  document.getElementById('rlLow').textContent=d.risk_counts.Low||0;
+
+  // Trend
+  const scores=d.scores;
+  trendChart.data.labels=scores.map((_,i)=>`#${i+1}`);
+  trendChart.data.datasets[0].data=scores;
+  trendChart.update();
+
+  // Top patterns
+  const maxC=d.top_patterns[0]?.count||1;
+  const colors=['#e74c3c','#e67e22','#f39c12','#2980b9','#8e44ad'];
+  document.getElementById('topPatterns').innerHTML=d.top_patterns.length===0
+    ?'<div class="empty">Analyze text to see data</div>'
+    :d.top_patterns.map((p,i)=>`
+      <div class="pattern-bar-row">
+        <div class="pb-header"><span class="pb-name">${p.pattern}</span><span class="pb-count">${p.count}</span></div>
+        <div class="pb-bg"><div class="pb-fill" style="width:${(p.count/maxC*100).toFixed(0)}%;background:${colors[i%5]}"></div></div>
+      </div>`).join('');
+
+  // Recent
+  document.getElementById('recentTable').innerHTML=d.recent.length===0
+    ?'<div class="empty">No analyses yet</div>'
+    :`<table class="rtable"><thead><tr><th>Text</th><th>Score</th><th>Risk</th><th>Time</th></tr></thead><tbody>
+    ${d.recent.map(r=>`<tr>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.text}</td>
+      <td>${r.score}</td>
+      <td><span class="risk-badge rb-${r.risk.toLowerCase()}">${r.risk}</span></td>
+      <td>${r.time}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// Auto-refresh analytics every 10s
+setInterval(refreshAnalytics, 10000);
+</script>
+</body>
+</html>
