@@ -459,6 +459,8 @@ def analyze():
         "risk": "High" if score > 60 else "Medium" if score > 30 else "Low",
     })
 
+import os
+
 if __name__ == "__main__":
-    print("🚀 Dashboard running at http://localhost:5004")
-    app.run(debug=True, port=5004)
+    port = int(os.environ.get("PORT", 5004))
+    app.run(host='0.0.0.0', port=port)
