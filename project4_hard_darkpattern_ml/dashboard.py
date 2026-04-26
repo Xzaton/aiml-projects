@@ -248,7 +248,6 @@ textarea:focus{border-color:#e94560;}
 <div class="main">
   <div class="topbar">
     <div><h1>Dark Pattern Detection Dashboard</h1><p>AIML Project — Real-time analysis using ML models</p></div>
-    <span class="badge-name">Dr. Tanupriya Chaudhary</span>
   </div>
 
   <!-- OVERVIEW -->
